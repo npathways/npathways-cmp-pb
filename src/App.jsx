@@ -1,9 +1,27 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import NotFound from "./NotFound";
+import LoadingScreen from "./LoadingScreen";
 
 function App() {
   const [scrolled, setScrolled] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState("");
+  const [isNotFound, setIsNotFound] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Basic routing logic for 404
+    const path = window.location.pathname;
+    if (path !== "/" && path !== "/index.html") {
+      setIsNotFound(true);
+    }
+
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -86,41 +104,64 @@ function App() {
   };
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-          }
-        });
-      },
-      { threshold: 0.1 },
-    );
+    if (isLoading) return;
 
-    document
-      .querySelectorAll(".pathway-item, .pathway-list")
-      .forEach((item) => observer.observe(item));
-    return () => observer.disconnect();
-  }, []);
+    // Small delay to ensure DOM is ready after loading screen
+    const timer = setTimeout(() => {
+      const items = document.querySelectorAll(".pathway-item, .pathway-list");
+      
+      if (!('IntersectionObserver' in window)) {
+        items.forEach(i => i.classList.add("visible"));
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("visible");
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: '50px' },
+      );
+
+      items.forEach((item) => observer.observe(item));
+      
+      return () => observer.disconnect();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const scrollToBooking = (programId) => {
     setSelectedProgram(programId);
     document.getElementById("booking").scrollIntoView({ behavior: "smooth" });
   };
 
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (isNotFound) {
+    return <NotFound />;
+  }
+
   return (
     <div className="app">
       {/* Header */}
       <header className={`header ${scrolled ? "scrolled" : ""}`}>
         <div className="container nav">
-          <div className="logo">NPATHWAYS</div>
+          <div className="logo" aria-label="npathways home">NPATHWAYS</div>
           <nav className="nav-links">
-            <button className="btn-book" onClick={() => scrollToBooking("")}>
+            <button className="btn-book" onClick={() => scrollToBooking("")} aria-label="Register for guidance">
               Register Now
             </button>
           </nav>
         </div>
       </header>
+
+      <main>
 
       {/* Hero Section */}
       <section id="home" className="hero animate-fade">
@@ -145,13 +186,7 @@ function App() {
                     .scrollIntoView({ behavior: "smooth" })
                 }
               >
-                Explore Services
-              </button>
-              <button
-                className="btn-book btn-outline"
-                onClick={() => scrollToBooking("")}
-              >
-                Book Discovery
+                Get Expert Guidance
               </button>
             </div>
           </div>
@@ -177,7 +212,7 @@ function App() {
                 className={`pathway-item ${index % 2 === 1 ? "reverse" : ""}`}
               >
                 <div className="pathway-visual">
-                  <img src={program.image} alt={program.title} />
+                  <img src={program.image} alt={`Visual representation of ${program.title} pathway`} />
                   <div className="image-overlay"></div>
                 </div>
                 <div className="pathway-content">
@@ -245,9 +280,9 @@ function App() {
               <div className="form-group">
                 <label>Phone Number</label>
                 <div className="phone-input-group">
-                  <select 
+                  <select
                     name="countryCode"
-                    className="form-control themed-select country-code-select" 
+                    className="form-control themed-select country-code-select"
                     value={formData.countryCode}
                     onChange={handleInputChange}
                   >
@@ -371,6 +406,7 @@ function App() {
           </form>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="footer">
