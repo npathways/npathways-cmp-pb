@@ -8,12 +8,25 @@ function App() {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [isNotFound, setIsNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success', 'error'
+  const [submissions, setSubmissions] = useState([]);
+  const [viewMode, setViewMode] = useState("user"); // 'user' or 'admin'
 
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6dJXDGygMbcFFVE8OdQ55VDwfv-PyAF8_ya1M9atpJNuvslGUMuuSHWO7LyAPPblxpQ/exec";
+  //  gsheet link : https://docs.google.com/spreadsheets/d/1Dl7QaEghsfQyXMCm7gX6Wa72dPqpIWY_4I_xGiQyJHc/edit?usp=sharing
+  
   useEffect(() => {
     // Basic routing logic for 404
     const path = window.location.pathname;
     if (path !== "/" && path !== "/index.html") {
       setIsNotFound(true);
+    }
+
+    // Check for admin view in URL
+    if (window.location.hash === "#admin") {
+      setViewMode("admin");
+      fetchSubmissions();
     }
 
     // Simulate loading
@@ -22,6 +35,17 @@ function App() {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  const fetchSubmissions = async () => {
+    if (SCRIPT_URL === "YOUR_GOOGLE_SCRIPT_URL_HERE") return;
+    try {
+      const response = await fetch(SCRIPT_URL);
+      const data = await response.json();
+      setSubmissions(data.reverse()); // Newest first
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -101,6 +125,61 @@ function App() {
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.phone) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    const payload = {
+      ...formData,
+      selectedProgram: selectedProgram,
+    };
+
+    try {
+      // We use no-cors if the script doesn't handle CORS, but for Apps Script 
+      // with JSON response, we usually need a proxy or handle redirect.
+      // Easiest is to use the 'anyone' access and fetch.
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors", // Google Apps Script requires no-cors for simple POST
+        cache: "no-cache",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      // Since mode is 'no-cors', we can't actually read the response
+      // but if it didn't throw, it's likely successful
+      setSubmitStatus("success");
+      setFormData({
+        name: "",
+        email: "",
+        countryCode: "+91",
+        phone: "",
+        category: "",
+        grade: "",
+        passoutYear: "",
+        examType: "",
+        examStatus: "",
+      });
+      setSelectedProgram("");
+    } catch (error) {
+      console.error("Submission error:", error);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -249,7 +328,7 @@ function App() {
             </p>
           </div>
 
-          <form className="booking-form" onSubmit={(e) => e.preventDefault()}>
+          <form className="booking-form" onSubmit={handleFormSubmit}>
             <div className="form-grid">
               <div className="form-group">
                 <label>Full Name</label>
@@ -400,13 +479,74 @@ function App() {
               </div>
             </div>
 
-            <button type="submit" className="btn-submit">
-              Register Now
+            <button 
+              type="submit" 
+              className={`btn-submit ${isSubmitting ? 'loading' : ''}`}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Processing..." : "Register Now"}
             </button>
+
+            {submitStatus === "success" && (
+              <div className="form-feedback success animate-fade">
+                <p>Registration successful! We'll contact you shortly.</p>
+              </div>
+            )}
+            {submitStatus === "error" && (
+              <div className="form-feedback error animate-fade">
+                <p>Something went wrong. Please try again later.</p>
+              </div>
+            )}
           </form>
         </div>
       </section>
       </main>
+
+      {/* Admin View / Submissions Dashboard */}
+      {viewMode === "admin" && (
+        <section className="admin-section animate-fade">
+          <div className="container">
+            <div className="admin-header">
+              <h2>Recent Submissions</h2>
+              <button className="btn-book" onClick={fetchSubmissions}>Refresh Data</button>
+            </div>
+            <div className="submissions-table-container">
+              {submissions.length > 0 ? (
+                <table className="submissions-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Program</th>
+                      <th>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map((sub, idx) => (
+                      <tr key={idx}>
+                        <td>{new Date(sub.Timestamp).toLocaleDateString()}</td>
+                        <td>{sub.name}</td>
+                        <td>{sub.email}</td>
+                        <td>{sub.countryCode} {sub.phone}</td>
+                        <td>{sub.selectedProgram}</td>
+                        <td>{sub.category}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="no-data">No submissions found or SCRIPT_URL not set.</div>
+              )}
+            </div>
+            <button className="btn-close-admin" onClick={() => {
+              setViewMode("user");
+              window.location.hash = "";
+            }}>Close Dashboard</button>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="footer">
