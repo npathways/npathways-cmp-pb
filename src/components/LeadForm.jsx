@@ -35,7 +35,8 @@ const LeadForm = ({ source = "Campaign Page", selectedProgram = "", onSuccess })
     setMessage({ type: "", text: "" });
 
     try {
-      const response = await fetch("http://localhost:5000/api/leads", {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const response = await fetch(`${baseUrl}/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, selectedProgram, source }),
