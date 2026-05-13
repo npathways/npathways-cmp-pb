@@ -194,7 +194,11 @@ function App() {
             
             {/* NEW UNIFIED LEAD FORM */}
             <div className="form-card-container">
-               <LeadForm source="Campaign: Portfolio Building" variant="light" />
+               <LeadForm 
+                 source="Campaign Page" 
+                 selectedProgram={selectedProgram || "General Inquiry"} 
+                 variant="light" 
+               />
             </div>
           </div>
         </section>
